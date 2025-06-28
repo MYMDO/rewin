@@ -88,45 +88,45 @@ if ($Confirmation -ne 'ТАК') {
 #================================================================================
 # Модуль 2: Підготовка дискового простору
 #================================================================================
-Write-Host "`n=== Модуль 2: Підготовка дискового простору ===" -ForegroundColor Yellow
+#Write-Host "`n=== Модуль 2: Підготовка дискового простору ===" -ForegroundColor Yellow
 
-try {
+#try {
     # Створення робочої директорії
-    if (-not (Test-Path $WorkingDir)) {
-        New-Item -Path $WorkingDir -ItemType Directory | Out-Null
-        Write-Host "Створено робочу директорію: $WorkingDir"
-    }
+#    if (-not (Test-Path $WorkingDir)) {
+#        New-Item -Path $WorkingDir -ItemType Directory | Out-Null
+#        Write-Host "Створено робочу директорію: $WorkingDir"
+#    }
 
     # Розрахунок нового розміру для розділу C:
-    $PartitionToResize = $SystemInfo.SystemPartition
-    $CurrentSize = $PartitionToResize.Size
-    $SizeToShrinkTo = $CurrentSize - ($RequiredSpaceGB * 1GB)
+#    $PartitionToResize = $SystemInfo.SystemPartition
+#    $CurrentSize = $PartitionToResize.Size
+#    $SizeToShrinkTo = $CurrentSize - ($RequiredSpaceGB * 1GB)
 
-    if ($SizeToShrinkTo -lt ($PartitionToResize.Size - $PartitionToResize.FreeSpace) ) {
-        Write-Error "Недостатньо вільного місця на диску C: для створення тимчасового розділу розміром $RequiredSpaceGB GB."
-        exit
-    }
+#    if ($SizeToShrinkTo -lt ($PartitionToResize.Size - $PartitionToResize.FreeSpace) ) {
+#        Write-Error "Недостатньо вільного місця на диску C: для створення тимчасового розділу розміром $RequiredSpaceGB GB."
+#        exit
+#    }
 
-    Write-Host "Стиснення розділу C: для вивільнення $($RequiredSpaceGB) GB..."
+#    Write-Host "Стиснення розділу C: для вивільнення $($RequiredSpaceGB) GB..."
    # Resize-Partition -DiskNumber $PartitionToResize.DiskNumber -PartitionNumber $PartitionToResize.PartitionNumber -Size $SizeToShrinkTo
     
     # Невелика пауза для стабілізації системи після зміни розміру
-    Start-Sleep -Seconds 5
-    Update-Disk -DiskNumber $PartitionToResize.DiskNumber
-
-    Write-Host "Створення нового тимчасового розділу..."
-    $NewPartition = New-Partition -DiskNumber $PartitionToResize.DiskNumber -UseMaximumSize -AssignDriveLetter
-    $TempPartitionLetter = $NewPartition.DriveLetter # Оновлюємо літеру, якщо W зайнята
-    
-    Write-Host "Форматування тимчасового розділу ($($TempPartitionLetter):) в NTFS..."
-    Format-Volume -DriveLetter $TempPartitionLetter -FileSystem NTFS -NewFileSystemLabel $TempPartitionLabel -Confirm:$false -Force
-
-    Write-Host "Підготовка диска успішно завершена. Тимчасовий розділ створено: $($TempPartitionLetter):" -ForegroundColor Green
-} catch {
-    Write-Error "Сталася помилка під час роботи з диском: $($_.Exception.Message)"
-    Write-Error "Настійно рекомендується перезавантажити комп'ютер та перевірити стан дисків у 'Керуванні дисками' (diskmgmt.msc)."
-    exit
-}
+#    Start-Sleep -Seconds 5
+#    Update-Disk -DiskNumber $PartitionToResize.DiskNumber
+#
+#    Write-Host "Створення нового тимчасового розділу..."
+#    $NewPartition = New-Partition -DiskNumber $PartitionToResize.DiskNumber -UseMaximumSize -AssignDriveLetter
+#    $TempPartitionLetter = $NewPartition.DriveLetter # Оновлюємо літеру, якщо W зайнята
+#    
+#    Write-Host "Форматування тимчасового розділу ($($TempPartitionLetter):) в NTFS..."
+#    Format-Volume -DriveLetter $TempPartitionLetter -FileSystem NTFS -NewFileSystemLabel $TempPartitionLabel -Confirm:$false -Force
+#
+#    Write-Host "Підготовка диска успішно завершена. Тимчасовий розділ створено: $($TempPartitionLetter):" -ForegroundColor Green
+#} catch {
+#    Write-Error "Сталася помилка під час роботи з диском: $($_.Exception.Message)"
+#    Write-Error "Настійно рекомендується перезавантажити комп'ютер та перевірити стан дисків у 'Керуванні дисками' (diskmgmt.msc)."
+#    exit
+#}
 
 #================================================================================
 # Модуль 3: Завантаження та розгортання образу Windows 10
