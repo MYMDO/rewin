@@ -17,6 +17,16 @@ $TempPartitionLetter = "W"
 $TempPartitionLabel = "WinInstall"
 $RequiredSpaceGB = 10
 
+# --- [ Допоміжні функції ] ---
+# ВИЗНАЧЕННЯ ФУНКЦІЇ ПЕРЕМІЩЕНО НАГОРУ
+function Get-ValueOrDefault($value, $default = "N/A") {
+    if ($value -and (-not [string]::IsNullOrWhiteSpace($value))) {
+        return $value
+    } else {
+        return $default
+    }
+}
+
 #================================================================================
 # Модуль 1: Перевірка середовища та збір інформації (з підвищеною стійкістю)
 #================================================================================
@@ -81,10 +91,6 @@ if (-not (Get-Volume -DriveLetter $TempPartitionLetter -ErrorAction SilentlyCont
 if (-not $script:Credential) {
     $script:Credential = Get-Credential -UserName "Admin" -Message "Введіть логін та пароль для нового облікового запису адміністратора"
 }
-
-# Допоміжна функція для виводу
-function Get-ValueOrDefault($value, $default = "N/A") { if ($value) { $value } else { $default } }
-
 
 #================================================================================
 # Модуль 2: Підготовка дискового простору (Ідентпотентний)
