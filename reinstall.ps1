@@ -118,7 +118,7 @@ if ($tempVolume -and $tempVolume.FileSystemLabel -eq $TempPartitionLabel) {
 # Модуль 3: Завантаження та розгортання образу Windows 10
 #================================================================================
 Write-Host "`n=== Модуль 3: Завантаження та розгортання образу Windows 10 ===" -ForegroundColor Yellow
-if (Test-Path "$($TempPartitionLetter):\sources\install.wim" -or Test-Path "$($TempPartitionLetter):\sources\install.esd") {
+if (Test-Path "$($TempPartitionLetter):\sources\install.wim" -or (Test-Path "$($TempPartitionLetter):\sources\install.esd")) {
     Write-Host "Інсталяційні файли Windows вже знаходяться на розділі '$($TempPartitionLetter):'. Пропускаємо цей крок." -ForegroundColor Green
 } else {
     if (-not (Test-Path $WorkingDir)) { New-Item -Path $WorkingDir -ItemType Directory | Out-Null }
