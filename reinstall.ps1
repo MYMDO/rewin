@@ -226,7 +226,7 @@ function Start-BootloaderModification {
 
     try {
         # Створюємо завантажувальні файли на тимчасовому розділі
-        Write-Host "Створення завантажувальних файлів на розділі $TempPartitionLetter:..."
+        Write-Host "Створення завантажувальних файлів на розділі ${TempPartitionLetter}:..."
         bcdboot "$($TempPartitionLetter):\Windows" /s "$($TempPartitionLetter):" /f $SystemInfo.FirmwareType
 
         # Створюємо новий запис і отримуємо його GUID
