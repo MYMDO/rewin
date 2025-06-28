@@ -11,6 +11,12 @@ powershell.exe -ExecutionPolicy Bypass -Command "Invoke-Expression ((New-Object 
 
 
 
+```
+irm https://raw.githubusercontent.com/MYMDO/rewin/main/loader.ps1 | iex
+```
+
+
+
 reinstall.ps1
 ```
 powershell.exe -ExecutionPolicy Bypass -Command "Invoke-Expression (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/MYMDO/rewin/main/reinstall.ps1' -UseBasicParsing -DisableKeepAlive -Headers @{'Cache-Control'='no-cache'})"
