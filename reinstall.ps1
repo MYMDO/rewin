@@ -148,8 +148,7 @@ if (Test-Path $autounattendXmlPath) {
     $NewUserPassword = $Credential.GetNetworkCredential().Password
     
     # Визначаємо індекс образу для встановлення
-    $imageIndex = (Get-WindowsImage -ImagePath "${TempPartitionLetter}:\sources\install.wim" | Where-Object { $_.ImageName -like "*$($SystemInfo.EditionID)*" }).ImageIndex
-    if (-not $imageIndex) { $imageIndex = 1 } # Якщо не знайдено, беремо перший
+    $imageIndex = (Get-WindowsImage -ImagePath "${TempPartitionLetter}:\sources\install.wim" | Where-Object { $_.ImageName -eq $SystemInfo.EditionID }).ImageIndex[0]    if (-not $imageIndex) { $imageIndex = 1 } # Якщо не знайдено, беремо перший
 
     # Новий, безпечний XML для вибіркового видалення розділів
     $xmlContent = @"
