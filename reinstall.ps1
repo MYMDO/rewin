@@ -1,14 +1,13 @@
 <#
 .SYNOPSIS
-    Універсальний скрипт для автоматичного "online" перевстановлення Windows 10 (Версія 5.0).
+    Універсальний скрипт для автоматичного "online" перевстановлення Windows 10 (Версія 5.1).
 .DESCRIPTION
-    Ця фінальна версія є кульмінацією всіх попередніх ітерацій. Вона намагається
-    автоматизувати всі можливі кроки, але має надійні механізми обробки помилок
-    і може бути запущена повторно для продовження роботи після ручного втручання.
-    Вона розроблена для максимальної універсальності та надійності.
+    Ця версія виправляє критичну помилку області видимості (scope) для змінної $SystemInfo,
+    гарантуючи її доступність у всіх модулях скрипта, що є ключовим для надійного
+    виконання в складних середовищах.
 .NOTES
     Автор: Ваш досвідчений системний адміністратор
-    Версія: 5.0 - The Professional's Choice
+    Версія: 5.1 - Global Scope Fix
 #>
 
 # --- [ Глобальні налаштування та змінні ] ---
@@ -16,10 +15,9 @@ $ErrorActionPreference = "Stop"
 $WorkingDir = "C:\Temp-Win-Reinstall"
 $TempPartitionLetter = "W"
 $TempPartitionLabel = "WinInstall"
-$RequiredSpaceGB = 12 # Збільшено для буфера та файлів завантаження
+$RequiredSpaceGB = 12
 
 # --- [ Допоміжні функції ] ---
-# Визначення функції на початку для гарантованої доступності в усьому скрипті
 function Get-ValueOrDefault($value, $default = "N/A") {
     if ($value -and (-not [string]::IsNullOrWhiteSpace($value))) {
         return $value
@@ -41,6 +39,7 @@ try {
     }
 
     try {
+        # Визначаємо змінну в області видимості скрипта, щоб вона була доступна скрізь
         $script:SystemInfo = [PSCustomObject]@{
             OSArchitecture  = (Get-CimInstance Win32_OperatingSystem).OSArchitecture
             FirmwareType    = $env:firmware_type
@@ -67,11 +66,11 @@ try {
 
     if (-not (Get-Volume -DriveLetter $TempPartitionLetter -ErrorAction SilentlyContinue)) {
         Write-Host "`n--- Зібрана системна інформація ---" -ForegroundColor Cyan
-        Write-Host "Архітектура ОС: $($SystemInfo.OSArchitecture)"
-        Write-Host "Редакція Windows: $(Get-ValueOrDefault $SystemInfo.EditionID 'Не визначено')"
-        Write-Host "Режим прошивки: $($SystemInfo.FirmwareType)"
-        Write-Host "Тип розмітки диска: $($SystemInfo.Disk.PartitionStyle)"
-        if ($SystemInfo.ProductKey) { Write-Host "Знайдений ключ продукту (OEM): $($SystemInfo.ProductKey)" }
+        Write-Host "Архітектура ОС: $($script:SystemInfo.OSArchitecture)"
+        Write-Host "Редакція Windows: $(Get-ValueOrDefault $script:SystemInfo.EditionID 'Не визначено')"
+        Write-Host "Режим прошивки: $($script:SystemInfo.FirmwareType)"
+        Write-Host "Тип розмітки диска: $($script:SystemInfo.Disk.PartitionStyle)"
+        if ($script:SystemInfo.ProductKey) { Write-Host "Знайдений ключ продукту (OEM): $($script:SystemInfo.ProductKey)" }
         else { Write-Warning "Ключ продукту не знайдено."}
         Write-Host "------------------------------------`n"
         Write-Warning "УВАГА! НАСТУПНИЙ КРОК РОЗПОЧНЕ НЕЗВОРОТНІ ЗМІНИ НА ВАШОМУ ДИСКУ!"
@@ -93,14 +92,14 @@ try {
     } else {
         Write-Host "Тимчасовий розділ не знайдено. Спроба автоматичної підготовки..."
         try {
-            if ($SystemInfo.Disk.PartitionStyle -eq "MBR") {
-                $PrimaryPartitions = Get-Partition -DiskNumber $SystemInfo.Disk.Number | Where-Object { $_.Type -in 'IFS', 'FAT32', 'FAT16', 'NTFS', 'Primary' }
+            if ($script:SystemInfo.Disk.PartitionStyle -eq "MBR") {
+                $PrimaryPartitions = Get-Partition -DiskNumber $script:SystemInfo.Disk.Number | Where-Object { $_.Type -in 'IFS', 'FAT32', 'FAT16', 'NTFS', 'Primary' }
                 if ($PrimaryPartitions.Count -ge 4) {
                     throw "Ваш диск MBR вже має 4 первинних розділи. Видаліть зайвий розділ вручну в 'Керуванні дисками' (diskmgmt.msc)."
                 }
             }
             
-            $PartitionToResize = $SystemInfo.SystemPartition
+            $PartitionToResize = $script:SystemInfo.SystemPartition
             $unallocatedSpace = Get-Disk -Number $PartitionToResize.DiskNumber | Get-Partition | Where-Object { $_.Type -eq 'Unused' } | Measure-Object -Property Size -Sum | Select-Object -ExpandProperty Sum
             if ($unallocatedSpace -lt ($RequiredSpaceGB * 1GB)) {
                 Write-Host "Недостатньо нерозподіленого простору. Спроба стиснути диск C:..."
@@ -113,8 +112,8 @@ try {
             
             Format-Volume -DriveLetter $script:TempPartitionLetter -FileSystem NTFS -NewFileSystemLabel $TempPartitionLabel -Confirm:$false -Force
 
-            if ($SystemInfo.FirmwareType -ne "UEFI") {
-                $DiskPartScript = "select disk $($SystemInfo.Disk.Number)`nselect partition $($NewPartition.PartitionNumber)`nactive`nexit"
+            if ($script:SystemInfo.FirmwareType -ne "UEFI") {
+                $DiskPartScript = "select disk $($script:SystemInfo.Disk.Number)`nselect partition $($NewPartition.PartitionNumber)`nactive`nexit"
                 $DiskPartScript | diskpart
             }
             Write-Host "Автоматична підготовка диска успішно завершена." -ForegroundColor Green
@@ -165,23 +164,23 @@ try {
     if (Test-Path $autounattendXmlPath) {
         Write-Host "Файл '$autounattendXmlPath' вже існує. Пропускаємо." -ForegroundColor Green
     } else {
-        $NewUserName = $Credential.UserName
-        $NewUserPassword = $Credential.GetNetworkCredential().Password
+        $NewUserName = $script:Credential.UserName
+        $NewUserPassword = $script:Credential.GetNetworkCredential().Password
         
         $installFromBlock = ""
-        if ($SystemInfo.EditionID) {
+        if ($script:SystemInfo.EditionID) {
             try {
                 $imagePath = if (Test-Path "${TempPartitionLetter}:\sources\install.wim") { "${TempPartitionLetter}:\sources\install.wim" } else { "${TempPartitionLetter}:\sources\install.esd" }
-                $imageIndex = (Get-WindowsImage -ImagePath $imagePath | Where-Object { $_.ImageName -eq $SystemInfo.EditionID }).ImageIndex[0]
+                $imageIndex = (Get-WindowsImage -ImagePath $imagePath | Where-Object { $_.ImageName -eq $script:SystemInfo.EditionID }).ImageIndex[0]
                 if ($imageIndex) {
                     $installFromBlock = "<InstallFrom><MetaData wcm:action=`"add`"><Key>/IMAGE/INDEX</Key><Value>$($imageIndex)</Value></MetaData></InstallFrom>"
                 }
-            } catch { Write-Warning "Не вдалося визначити індекс образу для '$($SystemInfo.EditionID)'. Інсталятор може показати меню вибору." }
+            } catch { Write-Warning "Не вдалося визначити індекс образу для '$($script:SystemInfo.EditionID)'. Інсталятор може показати меню вибору." }
         }
         
         $productKeyBlock = ""
-        if ($SystemInfo.ProductKey) {
-            $productKeyBlock = "<Key>$($SystemInfo.ProductKey)</Key>"
+        if ($script:SystemInfo.ProductKey) {
+            $productKeyBlock = "<Key>$($script:SystemInfo.ProductKey)</Key>"
         }
 
         $xmlContent = @"
@@ -191,7 +190,7 @@ try {
         <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
             <DiskConfiguration>
                 <Disk wcm:action="add">
-                    <DiskID>0</DiskID>
+                    <DiskID>$($script:SystemInfo.Disk.Number)</DiskID>
                     <WillWipeDisk>false</WillWipeDisk>
                     <ModifyPartitions>
                         <ModifyPartition wcm:action="add"><Order>1</Order><PartitionID>1</PartitionID><Format>NTFS</Format></ModifyPartition>
@@ -202,7 +201,7 @@ try {
             <ImageInstall>
                 <OSImage>
                     $($installFromBlock)
-                    <InstallTo><DiskID>0</DiskID><PartitionID>2</PartitionID></InstallTo>
+                    <InstallTo><DiskID>$($script:SystemInfo.Disk.Number)</DiskID><PartitionID>2</PartitionID></InstallTo>
                 </OSImage>
             </ImageInstall>
             <UserData>
@@ -227,7 +226,7 @@ try {
     # Модуль 5: Модифікація завантажувача
     #================================================================================
     Write-Host "`n=== Модуль 5: Модифікація завантажувача ===" -ForegroundColor Yellow
-    bcdboot "${TempPartitionLetter}:\Windows" /s "${TempPartitionLetter}:" /f $SystemInfo.FirmwareType
+    bcdboot "${TempPartitionLetter}:\Windows" /s "${TempPartitionLetter}:" /f $script:SystemInfo.FirmwareType
     $BcdOutput = bcdedit /create /d "Windows Reinstall (Temp)" /application osloader
     $Guid = ($BcdOutput -split '[\{\}]')[1]
     $Guid = "{${Guid}}"
@@ -235,7 +234,7 @@ try {
 
     bcdedit /set $Guid device "partition=${TempPartitionLetter}:"
     bcdedit /set $Guid osdevice "partition=${TempPartitionLetter}:"
-    if ($SystemInfo.FirmwareType -eq "UEFI") {
+    if ($script:SystemInfo.FirmwareType -eq "UEFI") {
         bcdedit /set $Guid path \EFI\Microsoft\Boot\bootmgfw.efi
     } else {
         bcdedit /set $Guid path \Windows\system32\winload.exe
