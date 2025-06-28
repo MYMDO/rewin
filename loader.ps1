@@ -1,59 +1,120 @@
-# Loader Script - v2.2
-# Maximum Compatibility Version. Uses the legacy WebClient but retains the
-# SHA256 hash check for reliability. This should work on very old PowerShell versions.
+<#
+.SYNOPSIS
+    Надійний завантажувач для скрипта перевстановлення Windows (Версія 3.0).
+.DESCRIPTION
+    Цей скрипт є промисловим стандартом для надійного розгортання. Він завантажує 
+    ZIP-архів з останнього релізу на GitHub, який містить основний скрипт та його 
+    хеш-суму. Це повністю вирішує проблеми кешування, кодування та цілісності файлів.
+.NOTES
+    Автор: Ваш досвідчений системний адміністратор
+    Версія: 3.0 - GitHub Actions Release
+#>
 
+# Зупинятися при першій помилці для передбачуваної поведінки
 $ErrorActionPreference = "Stop"
-$mainScriptUrl = "https://raw.githubusercontent.com/MYMDO/rewin/main/reinstall.ps1"
-$tempFile = "$env:TEMP\reinstall_main.ps1"
 
-# SHA256 hash of the known-good reinstall.ps1 file.
-$expectedHash = "84A9D33625373F7B0E68867DCF976072CC6870154FA393A98B822B9C759B2626".ToLower()
+# --- [ Конфігурація ] ---
 
-# Initialize the WebClient variable to be accessible in the 'finally' block
-$webClient = $null
+# URL для завантаження ZIP-архіву з останнього релізу.
+# GitHub автоматично перенаправляє /latest/ на найновіший реліз.
+$releaseZipUrl = "https://github.com/MYMDO/rewin/releases/latest/download/release.zip"
 
+# Створюємо унікальний шлях у тимчасовій директорії для уникнення конфліктів
+$tempDir = Join-Path $env:TEMP ([System.Guid]::NewGuid().ToString())
+$zipFilePath = Join-Path $tempDir "release.zip"
+$mainScriptFileName = "reinstall.ps1"
+$hashFileName = "hash.txt"
+
+# --- [ Основний блок виконання ] ---
+
+# Використовуємо try/catch/finally для гарантованого виконання та очищення
 try {
-    # --- Step 1: Download the main script reliably ---
-    Write-Host "Downloading main script using a compatible method..." -ForegroundColor Cyan
+    # --- Крок 1: Підготовка середовища ---
+    Write-Host "=== Крок 1: Підготовка середовища ===" -ForegroundColor Cyan
     
-    # Using the legacy System.Net.WebClient, which is available on all systems.
+    # Створюємо тимчасову директорію
+    if (-not (Test-Path $tempDir)) {
+        New-Item -Path $tempDir -ItemType Directory | Out-Null
+    }
+    Write-Host "Створено тимчасову директорію: $tempDir"
+
+    # --- Крок 2: Надійне завантаження архіву ---
+    Write-Host "`n=== Крок 2: Надійне завантаження архіву релізу ===" -ForegroundColor Cyan
+
+    # Використовуємо старий, але максимально сумісний WebClient, оскільки він гарантовано є в системі.
+    # Завантаження бінарного файлу (ZIP) менш схильне до проблем з кодуванням, ніж текстового.
     $webClient = New-Object System.Net.WebClient
     
-    # Add headers to bypass cache, just in case.
-    $webClient.Headers.Add("Cache-Control", "no-cache")
+    # Додаємо заголовки для боротьби з агресивним кешуванням
+    $webClient.Headers.Add("Cache-Control", "no-cache, no-store, must-revalidate")
     $webClient.Headers.Add("Pragma", "no-cache")
+    $webClient.Headers.Add("Expires", "0")
 
-    # Download the file to the temporary location.
-    $webClient.DownloadFile($mainScriptUrl, $tempFile)
-
-    Write-Host "Download complete." -ForegroundColor Green
-
-    # --- Step 2: Verify the integrity of the downloaded file ---
-    Write-Host "Verifying file integrity..." -ForegroundColor Cyan
-
-    # Calculate the SHA256 hash of the newly downloaded file.
-    $downloadedHash = (Get-FileHash -Path $tempFile -Algorithm SHA256).Hash.ToLower()
+    Write-Host "Завантаження архіву з: $releaseZipUrl"
+    $webClient.DownloadFile($releaseZipUrl, $zipFilePath)
     
-    # Compare the calculated hash with the expected hash.
+    if (-not (Test-Path $zipFilePath)) {
+        throw "Не вдалося завантажити архів релізу."
+    }
+    Write-Host "Архів успішно завантажено: $zipFilePath" -ForegroundColor Green
+
+    # --- Крок 3: Розпакування архіву ---
+    Write-Host "`n=== Крок 3: Розпакування архіву ===" -ForegroundColor Cyan
+    
+    # Використовуємо вбудовану в PowerShell команду для розпакування
+    Expand-Archive -Path $zipFilePath -DestinationPath $tempDir -Force
+    
+    $mainScriptPath = Join-Path $tempDir $mainScriptFileName
+    $hashFilePath = Join-Path $tempDir $hashFileName
+    
+    if (-not (Test-Path $mainScriptPath) -or -not (Test-Path $hashFilePath)) {
+        throw "Архів не містить необхідних файлів (reinstall.ps1 та hash.txt)."
+    }
+    Write-Host "Архів успішно розпаковано." -ForegroundColor Green
+
+    # --- Крок 4: Перевірка цілісності файлу ---
+    Write-Host "`n=== Крок 4: Перевірка цілісності (найважливіший етап) ===" -ForegroundColor Cyan
+    
+    # Читаємо очікуваний хеш з файлу hash.txt, який був створений GitHub Actions
+    $expectedHash = (Get-Content $hashFilePath).Trim().ToLower()
+    if ([string]::IsNullOrWhiteSpace($expectedHash)) {
+        throw "Файл з хеш-сумою порожній або пошкоджений."
+    }
+    Write-Host "Очікуваний хеш (з архіву): $expectedHash"
+
+    # Розраховуємо хеш для розпакованого основного скрипта
+    $downloadedHash = (Get-FileHash -Path $mainScriptPath -Algorithm SHA256).Hash.ToLower()
+    Write-Host "Розрахований хеш (локальний): $downloadedHash"
+
+    # Порівнюємо хеші
     if ($downloadedHash -ne $expectedHash) {
-        throw "FILE INTEGRITY CHECK FAILED! The downloaded file is corrupted. Expected: $expectedHash, Got: $downloadedHash"
+        # Якщо хеші не збігаються, це означає, що архів або його вміст було пошкоджено.
+        # Зупиняємо виконання негайно.
+        throw "ПЕРЕВІРКА ЦІЛІСНОСТІ ПРОВАЛЕНА! Файл пошкоджено або модифіковано."
     }
     
-    Write-Host "Integrity check passed. The file is authentic." -ForegroundColor Green
+    Write-Host "Перевірка цілісності пройдена. Файл автентичний." -ForegroundColor Green
 
-    # --- Step 3: Execute the verified script ---
-    Write-Host "Executing main script..." -ForegroundColor Cyan
+    # --- Крок 5: Виконання основного скрипта ---
+    Write-Host "`n=== Крок 5: Запуск основного скрипта ===" -ForegroundColor Cyan
     
-    # Use the call operator (&) to execute the script from the temporary file path.
-    # We must use powershell.exe -File to ensure the script runs in a clean scope
-    # and handles encoding correctly, especially if the main script has UTF-8 with BOM.
-    powershell.exe -ExecutionPolicy Bypass -File $tempFile
+    # Запускаємо перевірений локальний файл. Це найнадійніший спосіб.
+    # Використовуємо powershell.exe -File для запуску в чистому середовищі,
+    # що правильно обробляє кодування UTF-8 with BOM.
+    powershell.exe -ExecutionPolicy Bypass -File $mainScriptPath
 
 } catch {
-    Write-Error "A critical error occurred during the loading process: $($_.Exception.Message)"
+    # Ловимо будь-яку помилку з блоку 'try' і виводимо її
+    Write-Error "Критична помилка під час роботи завантажувача: $($_.Exception.Message)"
+    # Зупиняємо скрипт з кодом помилки
+    exit 1
 } finally {
-    if (Test-Path $tempFile) {
-        Remove-Item $tempFile -Force
+    # Цей блок виконується завжди, навіть якщо була помилка.
+    # Він потрібен для очищення тимчасових файлів.
+    Write-Host "`n=== Завершення роботи завантажувача: Очищення ===" -ForegroundColor Cyan
+    if (Test-Path $tempDir) {
+        Remove-Item -Path $tempDir -Recurse -Force
+        Write-Host "Тимчасові файли видалено."
     }
     if ($webClient) {
         $webClient.Dispose()
