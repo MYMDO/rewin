@@ -8,6 +8,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # --- [ ДОДАЙТЕ ЦЕЙ БЛОК ] ---
+    permissions:
+      contents: write # Надаємо права на запис у репозиторій (для створення тегів та релізів)
+    # -----------------------------
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
