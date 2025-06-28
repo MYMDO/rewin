@@ -3,5 +3,5 @@
 ---
 
 ```
-powershell.exe -ExecutionPolicy Bypass -Command "Invoke-Expression (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/MYMDO/rewin/main/reinstall.ps1' -UseBasicParsing).Content"
+powershell.exe -ExecutionPolicy Bypass -Command "Invoke-Expression (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/MYMDO/rewin/main/reinstall.ps1' -UseBasicParsing -DisableKeepAlive -Headers @{'Cache-Control'='no-cache'})"
 ```
