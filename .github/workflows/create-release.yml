@@ -1,0 +1,43 @@
+name: Create Release Package
+
+on:
+  push:
+    paths:
+      - 'reinstall.ps1' # Запускати тільки при зміні цього файлу
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Calculate Hash
+        id: hash
+        run: |
+          sha256sum reinstall.ps1 | awk '{print $1}' > hash.txt
+          echo "hash=$(cat hash.txt)" >> $GITHUB_OUTPUT
+
+      - name: Create Zip Archive
+        run: zip release.zip reinstall.ps1 hash.txt
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: build-${{ github.sha }}
+          release_name: Build ${{ github.sha }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release.zip
+          asset_name: release.zip
+          asset_content_type: application/zip
