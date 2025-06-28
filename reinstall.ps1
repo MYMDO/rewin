@@ -108,7 +108,7 @@ try {
     }
 
     Write-Host "Стиснення розділу C: для вивільнення $($RequiredSpaceGB) GB..."
-    Resize-Partition -DiskNumber $PartitionToResize.DiskNumber -PartitionNumber $PartitionToResize.PartitionNumber -Size $SizeToShrinkTo
+   # Resize-Partition -DiskNumber $PartitionToResize.DiskNumber -PartitionNumber $PartitionToResize.PartitionNumber -Size $SizeToShrinkTo
     
     # Невелика пауза для стабілізації системи після зміни розміру
     Start-Sleep -Seconds 5
