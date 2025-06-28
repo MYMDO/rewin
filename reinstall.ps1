@@ -12,7 +12,7 @@
                  ЗРОБІТЬ РЕЗЕРВНУ КОПІЮ ПЕРЕД ЗАПУСКОМ!
 #>
 
-# --- [ Глобальні налаштування та змінні ] ----
+# --- [ Глобальні налаштування та змінні ] ---
 $ErrorActionPreference = "Stop"
 $WorkingDir = "C:\Temp-Win-Reinstall"
 $TempPartitionLetter = "W"
